@@ -46,7 +46,7 @@ var PickColors = function ( imageObj ){
        return new PickColors(imageObj);
     }
     if (imageObj instanceof Image || isCanvas(imageObj)){
-        var imageCanvas = this.imageCanvas = commonCanvas.createCanvasByImage(imageObj);
+        var imageCanvas = this.imageCanvas = commonCanvas.createCanvasByImage(imageObj, 100000);
         var pickedHues = this.pickedHues = pickHues(this.imageCanvas);
         this.pickedColors = [];
         for(var i = 0; i< this.pickedHues.length && i < 5; ++i){
