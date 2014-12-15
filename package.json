@@ -1,0 +1,26 @@
+{
+  "name": "pickColors",
+  "version": "1.0.0",
+  "description": "pick impressive colors from image, canvas",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stuzeakd/pickColors"
+  },
+  "keywords": [
+    "pick",
+    "extract",
+    "color",
+    "canvas",
+    "image"
+  ],
+  "author": "stuzeakd",
+  "license": "MIT License",
+  "bugs": {
+    "url": "https://github.com/stuzeakd/pickColors/issues"
+  },
+  "homepage": "https://github.com/stuzeakd/pickColors"
+}
