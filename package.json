@@ -1,5 +1,5 @@
 {
-  "name": "pickColors",
+  "name": "pickcolors",
   "version": "1.0.0",
   "description": "pick impressive colors from image, canvas",
   "main": "index.js",
@@ -22,5 +22,9 @@
   "bugs": {
     "url": "https://github.com/stuzeakd/pickColors/issues"
   },
-  "homepage": "https://github.com/stuzeakd/pickColors"
+  "homepage": "https://github.com/stuzeakd/pickColors",
+  "dependencies": {
+    "common-canvas": "^1.0.1",
+    "tinycolor2": "^1.1.1"
+  }
 }
