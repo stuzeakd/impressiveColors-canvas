@@ -14,7 +14,7 @@ imageData = js.readFileSync("path/to/image");
 var image = new Image();
 image.src = imageData;
 Pickcolors(image).toRGB();
-/*get [{r: , g: , b}, ... ]
+/*get [{r: 255, g: 255, b: 0}, ... ]
   or .toHexString() 
-  get ["#123456", "#234567", ...]*/
+  get ["#FFFF00", ...]*/
 ```
