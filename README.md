@@ -1,7 +1,7 @@
-pickColors
+impressive-color-canvas
 =========
 
-pick impressive colors from image, canvas. 
+pick impressive colors from image, canvas for nodejs, browser.
 
 
 ###use
