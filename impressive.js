@@ -63,7 +63,7 @@ var Impressive = function Impressive(imageObj){
         for(var i = 0; i< this.pickedHues.length && i < 5; ++i){
             this.pickedColors[i] = 
                 tc({h : this.pickedHues[i]["x"], 
-                    s : findSat(imageCanvas, pickedHues[i]);
+                    s : findSat(imageCanvas, pickedHues[i]),
                     v : 100
                    }).toRgb();
         }
