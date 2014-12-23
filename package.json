@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/stuzeakd/impressiveColors-canvas",
   "dependencies": {
+    "canvas": "^1.1.6",
     "common-canvas": "^1.0.1",
     "tinycolor2": "^1.1.1"
   }

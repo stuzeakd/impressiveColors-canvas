@@ -37,15 +37,7 @@ if(isNodeModule){
     }
 }    
 /* add utility method */
-Array.prototype.circleIndex = function(idx){
-    if( idx >= 0 && idx < this.length){
-        return this[idx];
-    }else if(idx < 0){
-        return this.circleIndex(idx + this.length);
-    }else{
-        return this.circleIndex(idx - this.length);
-    }    
-}
+
 Math.mod = function(a, n){
     if( a < 0 ){
         return this.mod(a + n, n);   
@@ -53,9 +45,16 @@ Math.mod = function(a, n){
         return a%n;
     }
 }
+/* Constant */
+var HUE_RANGE = 360;
+var CHROMA_RULE = {sL: 0.25, vL:0.25};
+var ACHROMA_RULE = {sR: 0.25, vR:0.25};
+
 /* Module */
 var Impressive = function Impressive(imageObj){
     var RESIZING_PIXEL = 100000;
+    var SV_FLATTEN_RATE = 0.3;
+    var SV_SMOOTHING_CNT = 3;
     imageObj = imageObj ? imageObj : {};
     if(!(this instanceof Impressive)){
        return new Impressive(imageObj);
@@ -67,21 +66,22 @@ var Impressive = function Impressive(imageObj){
         
         
         //pickedColor Old ver.
-        this.pickedColorsOld = [];        
-        for(var i = 0; i< this.pickedHues.length && i < 5; ++i){
-            this.pickedColorsOld[i] = 
-                tc({h : this.pickedHues[i]["x"], 
-                    s : findSat(imageCanvas, pickedHues[i]),
-                    v : 100
-                   }).toRgb();
-        }
+//        this.pickedColorsOld = [];        
+//        for(var i = 0; i< this.pickedHues.length && i < 5; ++i){
+//            this.pickedColorsOld[i] = 
+//                tc({h : this.pickedHues[i]["x"], 
+//                    s : findSat(imageCanvas, pickedHues[i]),
+//                    v : 100
+//                   }).toRgb();
+//        }
         this.pickedColors = [];
         for(var hIdx = 0; hIdx < pickedHues.length; ++hIdx){
             console.log(hIdx, "hue : ", pickedHues[hIdx]);    
-            svHists[hIdx] = svHistogram(imageCanvas, pickedHues[hIdx]);  
+            svHists[hIdx] = svHistogram(imageCanvas, pickedHues[hIdx], CHROMA_RULE);  
+            //아아 깔끔하다.
             var pickedSV = svHists[hIdx].smoothing(3).flatten(0.3).pickPeaks();
             for(var svIdx = 0; svIdx < pickedSV.length; ++svIdx){
-                ("sv : ", pickedSV[svIdx]);
+                console.log("sv : ", pickedSV[svIdx]);
                 this.pickedColors[this.pickedColors.length] = tc({
                     h : pickedHues[hIdx]["x"],
                     s : pickedSV[svIdx]["x"],
@@ -125,157 +125,96 @@ Impressive.prototype = {
 //Impressive.flatten2DHist = flatten2DHist;
 //Impressive.pick2DPeaks = pick2DPeaks;
         
-var histogram = function histogram(type, width, height, init){
-    init = typeof init !== 'undefined' ? init : 0;
-    this.width = width;
-    this.height = height;
-    for(var x = 0; x < width; ++x){
-        this[x] = [];
-        for(var y = 0; y <height; ++y){
-            this[x][y] = init;    
-        }
+function isInHueRange(hue, rangeL, rangeR){
+    //rangeL and rangeR have same sign.
+    if(rangeL * rangeR > 0){
+        return Math.mod(rangeL, 360) <= hue && 
+            hue <= Math.mod(rangeR, 360);
+    }else{
+        return (Math.mod(rangeL, 360) <= hue && hue < 360) ||
+            (0 <= hue && hue <= Math.mod(rangeR, 360));
     }
 };
-histogram.prototype = new Array();
-histogram.prototype.max = function(cmp){
-    var max = 0;
-    for(var i = 0; i < this.width; ++i){
-        var iMax = Math.max.apply(null, this[i]);
-        if(max < iMax) max = iMax;
-    }
-    return max;
-};
-histogram.prototype.min = function(cmp){
-    var min = 0;
-    for(var i = 0; i < this.width; ++i){
-        var iMin = Math.mim.apply(null, this[i]);
-        if(min < iMin) min = iMin;
-    }
-    return min;
-};
-histogram.prototype.loop = function(doing){
-    for(var x =0; x< this.width; ++x){
-        for(var y =0; y< this.height; ++y){
-            doing.call(this,x,y);   
-        }
-    }
-};
-histogram.prototype.cv = function(mat, saturate){
-    saturate = typeof saturate !== "undefined" ? saturate : 1;
-    var resultHist = new histogram('2d', this.width, this.height);
-    var matSize = Math.sqrt(mat.length);
-    var cvRange = parseInt(matSize/2);
-    for(var x = 0; x< this.width; ++x){
-        for(var y = 0; y < this.height; ++y){
-            if( x > cvRange && y > cvRange && 
-               x < this.width - cvRange && y < this.height - cvRange ){
-                for(var i = -cvRange; i <= cvRange; ++i ){
-                    for(var j = -cvRange; j<= cvRange; ++j ){
-                        var matIndex = (i+cvRange)*matSize + j + cvRange;
-                        resultHist[x][y] += this[x+i][y+j] * mat[matIndex];
-                    }
-                }                   
-            }
-        }      
-    }
-    return resultHist;
-};
-histogram.prototype.smoothing = function(recur){
-    recur = typeof recur !== "undefined"? recur : 1;
-    var resultHist = this;
-    var mat = [1,1,1,1,1,
-               1,1,1,1,1,
-               1,1,1,1,1,
-               1,1,1,1,1,
-               1,1,1,1,1];
-    var matSum = mat.reduce(function(p, c){ return p+c; }); 
-    for(var i=0; i< mat.length; ++i){
-        mat[i] = mat[i]/matSum;
-    }
-    for(var i=0; i< recur; ++i){
-        resultHist = resultHist.cv(mat);    
-    }
-    return resultHist;
-};
-histogram.prototype.flatten = function(saturate){
-    var resultHist = new histogram('2d', this.width, this.height);
-    saturate = saturate * this.max();
-    for( var x = 0; x< this.width; ++x){
-        for( var y =0; y< this.height; ++y){
-            if( this[x][y] > saturate ) resultHist[x][y] = this[x][y];
-        }
-    }
-    return resultHist;   
-};
-histogram.prototype.binary = function toBinary2DHist(saturate){
-    var resultHist = new histogram('2d', this.width, this.height);
-    saturate = saturate * this.max();
-    for( var x = 0; x< this.width; ++x){
-        for( var y =0; y< this.height; ++y){
-            if( this[x][y] > saturate ) resultHist[x][y] = 1;
-        }
-    }
-    return resultHist;
-};
-histogram.prototype.pickPeaks = function(){
-    var peaks = [];
-    for(var x = 0; x < this.width; ++x){
-        for(var y =0; y< this.height; ++y){
-            if(isPeak.call(this,x,y)){
-                peaks[peaks.length] = {x: x, y: y, size: this[x][y]};
-            }
-        }
-    }
-    peaks.sort(function(f,b){ return b.size - f.size });
-    return peaks;
-    function isPeak(x,y){        
-        var ul = 
-            (x<=0|| y>=this.height-1) || 
-            (this[x][y] > this[x-1][y+1]) ? true : false;
-        var uu = 
-            (y>=this.height-1) || 
-            (this[x][y] > this[x][y+1])? true : false;
-        var ur = 
-            (x >= this.width-1 || y>=this.height-1) || 
-            (this[x][y] > this[x+1][y+1])? true : false;
-        var ll = 
-            (x<=0) || 
-            (this[x][y] > this[x-1][y])? true : false;
-        var rr = 
-            (x >= this.width-1) ||
-            (this[x][y] > this[x+1][y])? true : false;
-        var dl = 
-            (x<=0 || y<=0) || 
-            (this[x][y] > this[x-1][y-1])? true : false;
-        var dd = 
-            (y<=0) ||
-            (this[x][y] > this[x][y-1])? true : false;
-        var dr = 
-            (x >= this.width-1 || y<=0) ||
-            (this[x][y] > this[x+1][y-1])? true : false;
-//        if( x <= 0 ){
-//            
-//        }
-//        if( x >= this.length-1 ){
-//            
-//        }
-//        if( y <= 0){
-//            
-//        }
-//        if( y >= this[0].length-1 ){
-//            
-//        }
-        return ul && uu && ur && ll && rr && dl && dd && dr;
-    }
-};
-
-/* function */
+function makeHsvRule(rule){
+    rule = typeof rule === "undefined" ? { hL : 0, hR : 360, sL : 0, sR : 1, vL : 0, vR : 1 } :
+    {
+        hL : typeof rule["hL"] !== "undefined" ? rule["hL"] : 0,
+        hR : typeof rule["hR"] !== "undefined" ? rule["hR"] : 360,
+        sL : typeof rule["sL"] !== "undefined" ? rule["sL"] : 0,
+        sR : typeof rule["sR"] !== "undefined" ? rule["sR"] : 1,
+        vL : typeof rule["vL"] !== "undefined" ? rule["vL"] : 0,
+        vR : typeof rule["vR"] !== "undefined" ? rule["vR"] : 1                
+    };
+    return rule;
+}
+function isInRule(hsv, rule){
+    if( isInHueRange(hsv.h, rule.hL, rule.hR) && 
+        rule["sL"] <= hsv["s"] && hsv["s"] <= rule["sR"] && 
+        rule["vL"] <= hsv["v"] && hsv["v"] <= rule["vR"])
+    { return true; 
+    }else{ return false; }
+}
 var pickHues = function(imageCanvas){
     //hard coding.
-    var rawHist = histogram1D(imageCanvas, "hue", { sL : 0.25, vL : 0.25});
-    var resultHist = flattenHist(smoothingGraph(rawHist, 4, [1,1,1,1,1,1,1]), 0.01);
-    return pickPeaks(resultHist);   
+    var rawHist = hueHistogram(imageCanvas, CHROMA_RULE);
+    var resultHist = rawHist.smoothing(4).flatten(0.01);
+    return resultHist.pickPeaks();   
 }
+var hueHistogram = function(imageCanvas, rule){
+    var ctx = imageCanvas.getContext("2d");
+    var imageData = ctx.getImageData(0,0,imageCanvas.width, imageCanvas.height);
+    var hist = new circularHistogram1D(HUE_RANGE);    
+    rule = makeHsvRule(rule);
+    
+    for(var x = 0; x < imageData.width; ++x){
+        for(var y = 0; y < imageData.height; ++y){
+            var index = (x + y * imageData.width) * 4;
+            var r = imageData.data[index + 0];
+            var g = imageData.data[index + 1];
+            var b = imageData.data[index + 2];
+            var a = imageData.data[index + 3];
+            var hsv = tc({ r: r, g: g, b: b}).toHsv();
+            if(isInRule(hsv, rule)) 
+                hist[hIdx(hsv)]++;
+        }
+    }
+    return hist;
+   
+    function hIdx(hsv){ return parseInt(hsv["h"]); }
+}
+    
+var svHistogram = function(imageCanvas, hueData, rule){
+    var imageData = imageCanvas.getContext('2d').getImageData(0,0,imageCanvas.width, imageCanvas.height);
+    var sRange, vRange;
+    sRange = vRange = 101;
+    rule = makeHsvRule(rule);
+    rule.hL = hueData.rangeL;
+    rule.hR = hueData.rangeR;
+    var hist = new histrogram2D("2d", sRange, vRange);
+    for(var x = 0; x < imageCanvas.width; ++x){
+        for(var y =0; y < imageCanvas.height; ++y){
+            var idx = (y*imageCanvas.width + x) * 4;
+            var r = imageData.data[idx +0];
+            var g = imageData.data[idx +1];
+            var b = imageData.data[idx +2];
+            var a = imageData.data[idx +3];
+            var hsv = tc({r: r, g: g, b: b, a: a}).toHsv();
+            if(isInRule(hsv, rule)){
+                hist[sIdx(hsv.s)][vIdx(hsv.v)]++;
+            }
+        }
+    }
+    return hist;
+
+    function sIdx(s){
+        return Math.round(s*(sRange-1));    
+    }
+    function vIdx(v){
+        return Math.round(v*(vRange-1));
+    }
+}
+
+/* old function */
 
 var findSat = function(imageCanvas, hueData){
     var rawSatData = histogram1D(imageCanvas, "sat", { 
@@ -287,44 +226,7 @@ var findSat = function(imageCanvas, hueData){
     return pickPeaks(rawSatData)[0]["x"];
 }
 
-var svHistogram = function(imageCanvas, hueData){
-    var imageData = imageCanvas.getContext('2d').getImageData(0,0,imageCanvas.width, imageCanvas.height);
-    var sRange, vRange;
-    var hRange = 360;
-    sRange = vRange = 101;
-    var hist = new histogram("2d", sRange, vRange);
-    for(var x = 0; x < imageCanvas.width; ++x){
-        for(var y =0; y < imageCanvas.height; ++y){
-            var idx = (y*imageCanvas.width + x) * 4;
-            var r = imageData.data[idx +0];
-            var g = imageData.data[idx +1];
-            var b = imageData.data[idx +2];
-            var a = imageData.data[idx +3];
-            var hsv = tc({r: r, g: g, b: b, a: a}).toHsv();
-            if(isInHueRange(hsv.h)){
-                hist[sIdx(hsv.s)][vIdx(hsv.v)]++;
-            }
-        }
-    }
-    return hist;
-    
-    function isInHueRange(hue){
-        //rangeL and rangeR have same sign.
-        if(hueData.rangeL * hueData.rangeR > 0){
-            return Math.mod(hueData.rangeL, hRange) <= hue && 
-                hue <= Math.mod(hueData.rangeR, hRange);
-        }else{
-            return (Math.mod(hueData.rangeL, hRange) <= hue && hue < 360) ||
-                (0 <= hue && hue <= Math.mod(hueData.rangeR, hRange));
-        }
-    }
-    function sIdx(s){
-        return Math.round(s*(sRange-1));    
-    }
-    function vIdx(v){
-        return Math.round(v*(vRange-1));
-    }
-}
+
 
 var flattenHist = function(hist, saturate){
     var resultHist = [];
@@ -344,24 +246,9 @@ var histogram1D = function(canvas, type, rule){
     var imageData = ctx.getImageData(0,0,canvas.width, canvas.height);
     var hist = [];
     var histRange =0;
-
+    
     if(type === "hue" || type === "h" || type === "sat" || type === "s"){
-        rule = typeof rule === "undefined" ? { hL : 0, hR : 359, sL : 0, sR : 1, vL : 0, vR : 1 } :
-        {
-            hL : typeof rule["hL"] !== "undefined" ? rule["hL"] : 0,
-            hR : typeof rule["hR"] !== "undefined" ? rule["hR"] : 359,
-            sL : typeof rule["sL"] !== "undefined" ? rule["sL"] : 0,
-            sR : typeof rule["sR"] !== "undefined" ? rule["sR"] : 1,
-            vL : typeof rule["vL"] !== "undefined" ? rule["vL"] : 0,
-            vR : typeof rule["vR"] !== "undefined" ? rule["vR"] : 1                
-        };
-        
-        var isValidInRule = function(hsv){
-            if( rule["hL"] <= hsv["h"] && hsv["h"] <= rule["hR"] && 
-                rule["sL"] <= hsv["s"] && hsv["s"] <= rule["sR"] && 
-                rule["vL"] <= hsv["v"] && hsv["v"] <= rule["vR"]) return true;
-            else return false;
-        }
+        rule = makeHsvRule(rule);
         //indexing function is different by type.
         var typeIndex;
         if(type === "hue" || type === "h"){ 
@@ -382,7 +269,7 @@ var histogram1D = function(canvas, type, rule){
                 var g = imageData.data[index + 1];
                 var b = imageData.data[index + 2];
                 var hsv = tc({ r: r, g: g, b: b}).toHsv();
-                if(isValidInRule(hsv)) 
+                if(isInRule(hsv, rule)) 
                     hist[typeIndex(hsv)]++;
             }
         }
@@ -402,7 +289,7 @@ var smoothingGraph = function(hist, repeat, cvCoeff){
         resultHist = [];
         for( var i = 0; i< beforeHist.length; ++i){
             var sum = 0;
-            for( var cvIdx = -2; cvIdx < 2; ++cvIdx){
+            for( var cvIdx = -2; cvIdx <= 2; ++cvIdx){
                 sum += beforeHist.circleIndex(i + cvIdx) * cvCoeff[cvIdx + 2];
             }
 //            Average Convolution
@@ -458,7 +345,255 @@ function median(hist){
     }
     var sum = hist.reduce(function(pv, cv){return pv + cv});
     return sum%2 === 0 ? (nthData(hist, sum%2) + nthData(hist, sum%2+1))/2: nthData(hist, (sum+1)/2);
+}    
+    
+/* Histogram */    
+/* Circular Histogram */
+function circularHistogram1D(width, init){
+    init = typeof init !== 'undefined' ? init : 0;
+    this.width = width;
+    for(var x = 0; x< width; ++x){
+        this[x] = init;   
+    }
 }
+circularHistogram1D.prototype = new Array();
+circularHistogram1D.prototype.constructor = circularHistogram1D;
+circularHistogram1D.prototype.circleIndex = function(idx){
+    if( idx >= 0 && idx < this.width){
+        return this[idx];
+    }else if(idx < 0){
+        return this.circleIndex(idx + this.width);
+    }else{
+        return this.circleIndex(idx - this.width);
+    }    
+};
+circularHistogram1D.prototype.max = function(cmp){
+    var arr = [];
+    for( var i =0; i< this.width; ++i){
+        arr[i] = this[i];   
+    }
+    return Math.max.apply(null, arr);   
+};
+circularHistogram1D.prototype.min = function(cmp){
+    var arr = [];
+    for( var i =0; i< this.width; ++i){
+        arr[i] = this[i];   
+    }
+    return Math.min.apply(null, arr);   
+};
+circularHistogram1D.prototype.cv = function(coeff){
+    var resultHist = new circularHistogram1D(this.width);  
+    var coeffRange = parseInt(coeff.length / 2);
+    for( var i = 0; i< this.width; ++i){
+        for( var cvIdx = -coeffRange; cvIdx <= coeffRange; ++cvIdx){
+            resultHist[i] += this.circleIndex(i + cvIdx) * coeff[cvIdx + coeffRange];
+        }
+        resultHist[i] = Math.round(resultHist[i] * 100)/100;
+    }
+    return resultHist;
+};
+circularHistogram1D.prototype.smoothing = function(repeat){
+    repeat = typeof repeat !== "undefined"? repeat : 1;
+    var resultHist = this;
+    var cvCoeff = [1,1,1,1,1];
+    var cvCoeffSum = cvCoeff.reduce(function(p, c){ return p+c; }); 
+    for(var i=0; i< cvCoeff.length; ++i){
+        cvCoeff[i] = cvCoeff[i]/cvCoeffSum;
+    }
+    for(var i=0; i< repeat; ++i){
+        resultHist = resultHist.cv(cvCoeff);    
+    }
+    return resultHist;
+};    
+circularHistogram1D.prototype.flatten = function(saturate){
+    var resultHist = new circularHistogram1D(this.width);
+    saturate = saturate * this.max();
+    for( var i = 0; i< this.width; ++i){
+        if( this[i] > saturate ) resultHist[i] = this[i];
+    }
+    return resultHist;  
+};
+circularHistogram1D.prototype.pickPeaks = function(count){
+    var peaks = [];
+    var minDataIndex = this.indexOf(this.min()); // min is zero, ordinally.
+    
+    //idx can be <0, or >histLength because loop is started from minDataIndex.
+    //it must be normalized.
+
+    for(var x = minDataIndex; x< this.width + minDataIndex; ++x){
+        //wow. this is peak.
+        if(isPeak.call(this,x)){
+            var r, l;
+            //let's find left and right end.
+            for(r = x+1; this.circleIndex(r) > this.circleIndex(r+1) ; ++r);
+            for(l = x-1; this.circleIndex(l) > this.circleIndex(l-1) ; --l);
+            //push to peaks array.
+            peaks.push({ x : this.normalize(x), size : this.circleIndex(x), 
+                 rangeL : l, rangeR :r });   
+        }
+    }
+    peaks.sort(function(f,b){ return b.size - f.size });
+    return peaks;
+    function isPeak(x){
+        return this.circleIndex(x-1) < this.circleIndex(x) && 
+            this.circleIndex(x) > this.circleIndex(x+1);
+    }
+}    
+circularHistogram1D.prototype.normalize = function(idx){
+    if( idx < 0 ){
+        return normalize(idx + this.width)
+    }else if( idx > this.width ){
+        return normalize(idx - this.width);   
+    }else{
+        return idx;
+    }
+}
+    
+var histrogram2D = function histrogram2D(type, width, height, init){
+    init = typeof init !== 'undefined' ? init : 0;
+    this.width = width;
+    this.height = height;
+    for(var x = 0; x < width; ++x){
+        this[x] = [];
+        for(var y = 0; y <height; ++y){
+            this[x][y] = init;    
+        }
+    }
+};
+histrogram2D.prototype = new Array();
+histrogram2D.prototype.max = function(cmp){
+    var max = 0;
+    for(var i = 0; i < this.width; ++i){
+        var iMax = Math.max.apply(null, this[i]);
+        if(max < iMax) max = iMax;
+    }
+    return max;
+};
+histrogram2D.prototype.min = function(cmp){
+    var min = 0;
+    for(var i = 0; i < this.width; ++i){
+        var iMin = Math.min.apply(null, this[i]);
+        if(min < iMin) min = iMin;
+    }
+    return min;
+};
+histrogram2D.prototype.loop = function(doing){
+    for(var x =0; x< this.width; ++x){
+        for(var y =0; y< this.height; ++y){
+            doing.call(this,x,y);   
+        }
+    }
+};
+histrogram2D.prototype.cv = function(mat, saturate){
+    saturate = typeof saturate !== "undefined" ? saturate : 1;
+    var resultHist = new histrogram2D('2d', this.width, this.height);
+    var matSize = Math.sqrt(mat.length);
+    var cvRange = parseInt(matSize/2);
+    for(var x =0; x< this.width; ++x){
+        for(var y =0; y< this.height; ++y){
+            if( x > cvRange && y > cvRange && 
+               x < this.width - cvRange && y < this.height - cvRange ){
+                for(var i = -cvRange; i <= cvRange; ++i ){
+                    for(var j = -cvRange; j<= cvRange; ++j ){
+                        var matIndex = (i+cvRange)*matSize + j + cvRange;
+                        resultHist[x][y] += this[x+i][y+j] * mat[matIndex];
+                    }
+                }
+            }
+            //소수점 6번째 자리까지.
+            resultHist[x][y] = Math.round(resultHist[x][y]*1000000)/1000000;
+        }      
+    }
+    return resultHist;
+};
+histrogram2D.prototype.smoothing = function(repeat){
+    repeat = typeof repeat !== "undefined"? repeat : 1;
+    var resultHist = this;
+    var mat = [1,1,1,1,1,
+               1,1,1,1,1,
+               1,1,1,1,1,
+               1,1,1,1,1,
+               1,1,1,1,1];
+    var matSum = mat.reduce(function(p, c){ return p+c; }); 
+    for(var i=0; i< mat.length; ++i){
+        mat[i] = mat[i]/matSum;
+    }
+    for(var i=0; i< repeat; ++i){
+        resultHist = resultHist.cv(mat);    
+    }
+    return resultHist;
+};
+histrogram2D.prototype.flatten = function(saturate){
+    var resultHist = new histrogram2D('2d', this.width, this.height);
+    saturate = saturate * this.max();
+    for( var x = 0; x< this.width; ++x){
+        for( var y =0; y< this.height; ++y){
+            if( this[x][y] > saturate ) resultHist[x][y] = this[x][y];
+        }
+    }
+    return resultHist;   
+};
+histrogram2D.prototype.binary = function toBinary2DHist(saturate){
+    var resultHist = new histrogram2D('2d', this.width, this.height);
+    saturate = saturate * this.max();
+    for( var x = 0; x< this.width; ++x){
+        for( var y =0; y< this.height; ++y){
+            if( this[x][y] > saturate ) resultHist[x][y] = 1;
+        }
+    }
+    return resultHist;
+};
+histrogram2D.prototype.pickPeaks = function(){
+    var peaks = [];
+    for(var x = 0; x < this.width; ++x){
+        for(var y =0; y< this.height; ++y){
+            if(isPeak.call(this,x,y)){
+                peaks[peaks.length] = {x: x, y: y, size: this[x][y]};
+            }
+        }
+    }
+    peaks.sort(function(f,b){ return b.size - f.size });
+    return peaks;
+    function isPeak(x,y){        
+        var ul = 
+            (x<=0|| y>=this.height-1) || 
+            (this[x][y] > this[x-1][y+1]) ? true : false;
+        var uu = 
+            (y>=this.height-1) || 
+            (this[x][y] > this[x][y+1])? true : false;
+        var ur = 
+            (x >= this.width-1 || y>=this.height-1) || 
+            (this[x][y] > this[x+1][y+1])? true : false;
+        var ll = 
+            (x<=0) || 
+            (this[x][y] > this[x-1][y])? true : false;
+        var rr = 
+            (x >= this.width-1) ||
+            (this[x][y] > this[x+1][y])? true : false;
+        var dl = 
+            (x<=0 || y<=0) || 
+            (this[x][y] > this[x-1][y-1])? true : false;
+        var dd = 
+            (y<=0) ||
+            (this[x][y] > this[x][y-1])? true : false;
+        var dr = 
+            (x >= this.width-1 || y<=0) ||
+            (this[x][y] > this[x+1][y-1])? true : false;
+//        if( x <= 0 ){
+//            
+//        }
+//        if( x >= this.length-1 ){
+//            
+//        }
+//        if( y <= 0){
+//            
+//        }
+//        if( y >= this[0].length-1 ){
+//            
+//        }
+        return ul && uu && ur && ll && rr && dl && dd && dr;
+    }
+};    
 //export node module
 if(isNodeModule){
     module.exports = Impressive;
