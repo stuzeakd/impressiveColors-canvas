@@ -75,20 +75,20 @@ var Impressive = function Impressive(imageObj, mode){
         var highHueHistResult = hueHistogram(imageCanvas, HIGH_SAT_RULE);
         var highHueHist = this.highHueHist = highHueHistResult.hist;
         var pickedHighSHues = highHueHist.smoothing(2).flatten(0.01).pickPeaks();
-        console.log(">--- High Saturation Colors"); 
+//        console.log(">--- High Saturation Colors"); 
         
         for(var hIdx = 0; hIdx < pickedHighSHues.length; ++hIdx){
-            console.log("Chroma hue " +hIdx+ " : ", pickedHighSHues[hIdx]);
+//            console.log("Chroma hue " +hIdx+ " : ", pickedHighSHues[hIdx]);
             var svHistsResult = svHistogram(imageCanvas, pickedHighSHues[hIdx], HIGH_SAT_RULE);  
             svHists[svHists.length] = svHistsResult.hist;
-            console.log("Hue rate : ",svHistsResult.rate);
+//            console.log("Hue rate : ",svHistsResult.rate);
             //아아 깔끔하다.
             
             if(Math.round(svHistsResult.rate*1000)/1000 >= HIGH_SAT_COLOR_EXISTENCE_BOUNDARY_RATE){
                 var pickedSV = svHists[svHists.length-1].smoothing(3).flatten(0.3).pickPeaks();
                 //채도가 가장 높은거만 뽑는다.
                 pickedSV.sort(function(f,b){ return b.x - f.x }); 
-                console.log("s, v : ", pickedSV[0]);
+//                console.log("s, v : ", pickedSV[0]);
                 var color = tc({
                     h : pickedHighSHues[hIdx]["x"],
                     s : pickedSV[0]["x"],
@@ -96,7 +96,7 @@ var Impressive = function Impressive(imageObj, mode){
                 }).toRgb();
                 //존재 비율을 추가해서 color배열에 넣는다.
                 color.rate = svHistsResult.rate * pickedSV[0].rate;
-                console.log("color : ", color);
+//                console.log("color : ", color);
                 this.highSatColors[this.highSatColors.length] = 
                 this.pickedColors[this.pickedColors.length] = color;
             }
@@ -111,35 +111,35 @@ var Impressive = function Impressive(imageObj, mode){
         var achromaAvgRgb = classifyResult.avgRgb
         var achromaAvgHsv = tc(achromaAvgRgb).toHsv();
         
-        console.log(">  chroma rate : ", chromaRate);
-        console.log("> achroma rate :", 1-chromaRate);
+//        console.log(">  chroma rate : ", chromaRate);
+//        console.log("> achroma rate :", 1-chromaRate);
 
         var pickedHues = chroma.smoothing(4).flatten(0.01).pickPeaks();        
         var pickedTones = achroma.smoothing(4).flatten(0.01).pickPeaks();
         
-        console.log(">-");
-        console.log(">--");
-        console.log(">--- Chroma Colors");
-        console.log(">--");
-        console.log(">-");
+//        console.log(">-");
+//        console.log(">--");
+//        console.log(">--- Chroma Colors");
+//        console.log(">--");
+//        console.log(">-");
         for(var hIdx = 0; hIdx < pickedHues.length; ++hIdx){
-            console.log("Chroma hue " +hIdx+ " : ", pickedHues[hIdx]);    
+//            console.log("Chroma hue " +hIdx+ " : ", pickedHues[hIdx]);    
             if(!isHighSatColorsIn.call(this,pickedHues[hIdx])){
                 var svHistsResult = svHistogram(imageCanvas, pickedHues[hIdx], CHROMA_RULE);  
                 svHists[svHists.length] = svHistsResult.hist;
-                console.log("Hue rate : ",svHistsResult.rate);
+//                console.log("Hue rate : ",svHistsResult.rate);
 
                 var pickedSV = svHists[svHists.length-1].smoothing(3).flatten(0.3).pickPeaks();
             
                 for(var svIdx = 0; svIdx < pickedSV.length; ++svIdx){
-                    console.log("s, v : ", pickedSV[svIdx]);
+//                    console.log("s, v : ", pickedSV[svIdx]);
                     var color = tc({
                         h : pickedHues[hIdx]["x"],
                         s : pickedSV[svIdx]["x"],
                         v : pickedSV[svIdx]["y"]
                     }).toRgb();
                     color.rate = pickedHues[hIdx].rate * pickedSV[svIdx].rate;
-                    console.log("color", color);
+//                    console.log("color", color);
                 
                     this.chromaColors[this.chromaColors.length] = 
                     this.pickedColors[this.pickedColors.length] = color;
@@ -154,21 +154,21 @@ var Impressive = function Impressive(imageObj, mode){
             return false;
         }
         
-        console.log(">-");
-        console.log(">--");
-        console.log(">--- Achroma Colors");
-        console.log(">--");
-        console.log(">-");
+//        console.log(">-");
+//        console.log(">--");
+//        console.log(">--- Achroma Colors");
+//        console.log(">--");
+//        console.log(">-");
         for(var vIdx = 0; vIdx < pickedTones.length; ++vIdx){
             
-            console.log("Achroma value " +vIdx+ " : ", pickedTones[vIdx]);
+//            console.log("Achroma value " +vIdx+ " : ", pickedTones[vIdx]);
             var color = tc({
                 h : achromaAvgHsv.h,
                 s : achromaAvgHsv.s,
                 v : (pickedTones[vIdx].x/VALUE_RANGE)
             }).toRgb();
             color.rate = (1-chromaRate) * pickedTones[vIdx].rate;
-            console.log("color", color);
+//            console.log("color", color);
             this.achromaColors[this.achromaColors.length] = 
             this.pickedColors[this.pickedColors.length] = color;
         }
@@ -347,7 +347,7 @@ var pickHues = function(imageCanvas){
     //hard coding.
     var rawHistResult = hueHistogram(imageCanvas, CHROMA_RULE);
     var rawHist = rawHistResult.hist;
-    console.log("hue rate : ", rawHistResult.rate);
+//    console.log("hue rate : ", rawHistResult.rate);
     var resultHist = rawHist.smoothing(4).flatten(0.01);
     return resultHist.pickPeaks();   
 }
