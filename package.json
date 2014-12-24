@@ -1,6 +1,6 @@
 {
   "name": "impressive",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "pick impressive colors from image, canvas",
   "main": "impressive.js",
   "scripts": {
