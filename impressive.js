@@ -8,8 +8,8 @@ var Canvas;
 var tc;
 var cmCvs;
 
-var console = {};
-console.log = function(){};
+//var console = {};
+//console.log = function(){};
     
 /* Export and Constructor Setting */
 if(isNodeModule){
@@ -102,15 +102,15 @@ var Impressive = function Impressive(imageObj, mode){
             console.log("\t  Hue rate after SV : ",Math.round(svHistsResult.rate * 10000)/100 + " %");
             //아아 깔끔하다.
             
-            if(Math.round(svHistsResult.rate*1000)/1000 >= HIGH_SAT_COLOR_EXISTENCE_BOUNDARY_RATE){
+            if(Math.round(svHistsResult.rate*1000)/1000 >= HIGH_SAT_COLOR_EXISTENCE_BOUNDARY_RATE && Math.round(svHistsResult.rate*1000)/1000 < 0.5){
                 var pickedSV = svHists[svHists.length-1].smoothing(3).flatten(0.3).pickPeaks();
                 //채도가 가장 높은거만 뽑는다.
                 pickedSV.sort(function(f,b){ return b.x - f.x }); 
                 console.log("\t\t rate in hue: ", Math.round(pickedSV[0].rate * 10000)/100 + " %");
                 var color = {
                     h : pickedHighSHues[hIdx]["x"],
-                    s : pickedSV[0]["x"],
-                    v : pickedSV[0]["y"],
+                    s : pickedSV[0]["x"]/(SATURATION_RANGE-1),
+                    v : pickedSV[0]["y"]/(VALUE_RANGE-1),
                     rate : svHistsResult.rate * pickedSV[0].rate
                 };
                 //존재 비율을 추가해서 color배열에 넣는다.
@@ -119,7 +119,6 @@ var Impressive = function Impressive(imageObj, mode){
                 this.highSatColors[this.highSatColors.length] = 
                 this.pickedColors[this.pickedColors.length] = color;
             }
-            
         }
         
         var classifyResult = classifyChroma(imageCanvas, CHROMA_RULE);
@@ -161,8 +160,8 @@ var Impressive = function Impressive(imageObj, mode){
                 console.log("\t\t rate in hue: ", Math.round(pickedSV[svIdx].rate * 10000)/100 + " %");
                 var color = {
                     h : pickedHues[hIdx]["x"],
-                    s : pickedSV[svIdx]["x"],
-                    v : pickedSV[svIdx]["y"],
+                    s : pickedSV[svIdx]["x"]/(SATURATION_RANGE-1),
+                    v : pickedSV[svIdx]["y"]/(VALUE_RANGE-1),
                     rate : pickedHues[hIdx].rate * pickedSV[svIdx].rate
                 }
                 console.log(JSON.stringify(color, colorShowFormat, '|     '));
@@ -239,8 +238,8 @@ var Impressive = function Impressive(imageObj, mode){
             console.log("Achroma " +svIdx+ " rate : " +  Math.round(pickedTones[svIdx].rate* 10000)/100 + " %");
             var color = {
                 'h' : achromaAvgHsv.h,
-                's' : pickedTones[svIdx].x,
-                'v' : pickedTones[svIdx].y,
+                's' : pickedTones[svIdx].x/(SATURATION_RANGE-1),
+                'v' : pickedTones[svIdx].y/(VALUE_RANGE-1),
                 'rate' : (1-chromaRate) * pickedTones[svIdx].rate
             }
             console.log(JSON.stringify(color, colorShowFormat, '|     '));
