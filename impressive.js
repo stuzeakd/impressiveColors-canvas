@@ -8,8 +8,8 @@ var Canvas;
 var tc;
 var cmCvs;
 
-//var console = {};
-//console.log = function(){};
+var console = {};
+console.log = function(){};
     
 /* Export and Constructor Setting */
 if(isNodeModule){
