@@ -7,6 +7,9 @@ var isRequirejs = typeof define === 'function' && define.amd;
 var Canvas;
 var tc;
 var cmCvs;
+
+//var console = {};
+//console.log = function(){};
     
 /* Export and Constructor Setting */
 if(isNodeModule){
@@ -47,13 +50,18 @@ Math.mod = function(a, n){
 }
 /* Constant */
 var HUE_RANGE = 360;
+var SATURATION_RANGE = 101;
 var VALUE_RANGE = 101;
-var CHROMA_RULE = {sL: 0.20, vL:0.20};
-var ACHROMA_RULE = {sR: 0.20, vR:0.20};
+var CHROMA_RULE = {sL: 0.15, vL:0.2};
+var ACHROMA_RULE = {sR: 0.15, vR:0.2};
 var HIGH_SAT_RULE = {sL : 0.7, vL:0.9};
+    
+var GREEN_HUE = 120
+    
 /* Module */
 var Impressive = function Impressive(imageObj, mode){
-    var DateStart = new Date();
+    var dateStart = new Date();
+    
     var RESIZING_PIXEL = 100000;
     var SV_FLATTEN_RATE = 0.3;
     var SV_SMOOTHING_CNT = 3;
@@ -64,180 +72,277 @@ var Impressive = function Impressive(imageObj, mode){
     }
     if (cmCvs.isImage(imageObj) || cmCvs.isCanvas(imageObj)){
         var imageCanvas = this.imageCanvas = cmCvs.createCanvasByImage(imageObj, RESIZING_PIXEL);
-
+        
         this.pickedColors = new Colors();
         this.highSatColors = new Colors();
         this.chromaColors = new Colors();
         this.achromaColors = new Colors();
         this.dominantColors = new Colors();
+        
         var svHists = this.svHists = [];
         
         var highHueHistResult = hueHistogram(imageCanvas, HIGH_SAT_RULE);
         var highHueHist = this.highHueHist = highHueHistResult.hist;
         var pickedHighSHues = highHueHist.smoothing(2).flatten(0.01).pickPeaks();
-//        console.log(">--- High Saturation Colors"); 
+        
+        console.log(">-------------------------------------");
+        console.log(">--");
+        console.log(">--- High Saturation Colors"); 
+        console.log(">--");
+        console.log(">-------------------------------------");
         
         for(var hIdx = 0; hIdx < pickedHighSHues.length; ++hIdx){
-//            console.log("Chroma hue " +hIdx+ " : ", pickedHighSHues[hIdx]);
+            console.log(">-");
+            console.log(">--Chroma hue " +hIdx+ " : " + pickedHighSHues[hIdx].x);
+            console.log(">-  range : " + pickedHighSHues[hIdx].rangeL + " ~ " +
+ pickedHighSHues[hIdx].rangeR + ",\trate : " + Math.round(pickedHighSHues[hIdx].rate * 10000)/100 + " %");
+
             var svHistsResult = svHistogram(imageCanvas, pickedHighSHues[hIdx], HIGH_SAT_RULE);  
             svHists[svHists.length] = svHistsResult.hist;
-//            console.log("Hue rate : ",svHistsResult.rate);
+            console.log("\t  Hue rate after SV : ",Math.round(svHistsResult.rate * 10000)/100 + " %");
             //아아 깔끔하다.
             
             if(Math.round(svHistsResult.rate*1000)/1000 >= HIGH_SAT_COLOR_EXISTENCE_BOUNDARY_RATE){
                 var pickedSV = svHists[svHists.length-1].smoothing(3).flatten(0.3).pickPeaks();
                 //채도가 가장 높은거만 뽑는다.
                 pickedSV.sort(function(f,b){ return b.x - f.x }); 
-//                console.log("s, v : ", pickedSV[0]);
-                var color = tc({
+                console.log("\t\t rate in hue: ", Math.round(pickedSV[0].rate * 10000)/100 + " %");
+                var color = {
                     h : pickedHighSHues[hIdx]["x"],
                     s : pickedSV[0]["x"],
-                    v : pickedSV[0]["y"]
-                }).toRgb();
+                    v : pickedSV[0]["y"],
+                    rate : svHistsResult.rate * pickedSV[0].rate
+                };
                 //존재 비율을 추가해서 color배열에 넣는다.
-                color.rate = svHistsResult.rate * pickedSV[0].rate;
-//                console.log("color : ", color);
+                
+                console.log(JSON.stringify(color, colorShowFormat, '|     '));
                 this.highSatColors[this.highSatColors.length] = 
                 this.pickedColors[this.pickedColors.length] = color;
             }
+            
         }
         
         var classifyResult = classifyChroma(imageCanvas, CHROMA_RULE);
+        
         var chroma = classifyResult.chroma;
         var chromaRate = classifyResult.rate;
         var achroma = classifyResult.achroma;
+        
         var avgRgb = classifyResult.avgRgb;
         var avgHsv = tc(avgRgb).toHsv();
         var achromaAvgRgb = classifyResult.avgRgb
         var achromaAvgHsv = tc(achromaAvgRgb).toHsv();
         
-//        console.log(">  chroma rate : ", chromaRate);
-//        console.log("> achroma rate :", 1-chromaRate);
+        console.log(">  chroma rate : ", Math.round(chromaRate*10000)/100 + " %");
+        console.log("> achroma rate : ", Math.round((1-chromaRate)*10000)/100 + " %");
 
         var pickedHues = chroma.smoothing(4).flatten(0.01).pickPeaks();        
         var pickedTones = achroma.smoothing(4).flatten(0.01).pickPeaks();
+        this.achroma = achroma;
         
-//        console.log(">-");
-//        console.log(">--");
-//        console.log(">--- Chroma Colors");
-//        console.log(">--");
-//        console.log(">-");
+        console.log(">-------------------------------------");
+        console.log(">--");
+        console.log(">--- Chroma Colors");
+        console.log(">--");
+        console.log(">-------------------------------------");
         for(var hIdx = 0; hIdx < pickedHues.length; ++hIdx){
-//            console.log("Chroma hue " +hIdx+ " : ", pickedHues[hIdx]);    
-            if(!isHighSatColorsIn.call(this,pickedHues[hIdx])){
-                var svHistsResult = svHistogram(imageCanvas, pickedHues[hIdx], CHROMA_RULE);  
-                svHists[svHists.length] = svHistsResult.hist;
-//                console.log("Hue rate : ",svHistsResult.rate);
+            console.log(">-");
+            console.log(">--Chroma hue " +hIdx+ " : " + pickedHues[hIdx].x);
+            console.log(">-  range : " + pickedHues[hIdx].rangeL + " ~ " + pickedHues[hIdx].rangeR + ",\trate : " + Math.round(pickedHues[hIdx].rate * 10000)/100 + " %");    
 
-                var pickedSV = svHists[svHists.length-1].smoothing(3).flatten(0.3).pickPeaks();
-            
-                for(var svIdx = 0; svIdx < pickedSV.length; ++svIdx){
-//                    console.log("s, v : ", pickedSV[svIdx]);
-                    var color = tc({
-                        h : pickedHues[hIdx]["x"],
-                        s : pickedSV[svIdx]["x"],
-                        v : pickedSV[svIdx]["y"]
-                    }).toRgb();
-                    color.rate = pickedHues[hIdx].rate * pickedSV[svIdx].rate;
-//                    console.log("color", color);
-                
-                    this.chromaColors[this.chromaColors.length] = 
-                    this.pickedColors[this.pickedColors.length] = color;
-                }    
+            //High Saturation 색에서 뽑은 Hue는 제외한다.
+            var svHistsResult = svHistogram(imageCanvas, pickedHues[hIdx], CHROMA_RULE);  
+            svHists[svHists.length] = svHistsResult.hist;
+            console.log("\t  Hue rate after SV : ",Math.round(svHistsResult.rate * 10000)/100 + " %");
+
+            var pickedSV = svHists[svHists.length-1].smoothing(3).flatten(0.3).pickPeaks();
+            var tmpColors = new Colors();
+            for(var svIdx = 0; svIdx < pickedSV.length; ++svIdx){
+                console.log("\t\t rate in hue: ", Math.round(pickedSV[svIdx].rate * 10000)/100 + " %");
+                var color = {
+                    h : pickedHues[hIdx]["x"],
+                    s : pickedSV[svIdx]["x"],
+                    v : pickedSV[svIdx]["y"],
+                    rate : pickedHues[hIdx].rate * pickedSV[svIdx].rate
+                }
+                console.log(JSON.stringify(color, colorShowFormat, '|     '));
+                tmpColors[tmpColors.length] =
+                this.pickedColors[this.pickedColors.length] = color;
+                if(isInColors(color, this.highSatColors)){
+                    tmpColors.pop();
+                }
+                //
+                for(var tmpIdx = 0; tmpIdx < tmpColors.length-1; ++tmpIdx){
+                    var colorInChroma = isInColors(color, this.chromaColors);
+                    if(colorInChroma){
+                        colorInChroma.h = (colorInChroma.h * colorInChroma.rate + 
+                            color.h * color.rate) / (colorInChroma.rate + color.rate);
+                        colorInChroma.s = (colorInChroma.s * colorInChroma.rate + 
+                            color.s * color.rate) / (colorInChroma.rate + color.rate);
+                        colorInChroma.v = (colorInChroma.v * colorInChroma.rate + 
+                            color.v * color.rate) / (colorInChroma.rate + color.rate);
+                        colorInChroma.rate += color.rate;
+                        tmpColors.pop();
+                        break;
+                    }
+                    if(vContrastRate(tmpColors[tmpIdx].v, color.v) < 0.15){
+                        tmpColors[tmpIdx].s = tmpColors[tmpIdx].s > color. s ? tmpColors[tmpIdx].s: color.s;
+                        tmpColors[tmpIdx].rate += color.rate;
+                        tmpColors.pop();
+                        break;
+                    }else if(sContrastRate(tmpColors[tmpIdx].s, color.s) < 0.3){
+                        if(sContrastRate(tmpColors[tmpIdx].v, color.v) < 0.3){
+
+                            tmpColors[tmpIdx].s = 
+                            ((tmpColors[tmpIdx].s * tmpColors[tmpIdx].rate) + (color.s * color.rate))/ (tmpColors[tmpIdx].rate + color.rate);
+                            tmpColors[tmpIdx].v = 
+                            ((tmpColors[tmpIdx].v * tmpColors[tmpIdx].rate) + (color.v * color.rate))/ (tmpColors[tmpIdx].rate + color.rate)
+                            tmpColors[tmpIdx].rate += color.rate;
+                            tmpColors.pop();
+                            break;
+                        }
+                    }
+                }
+
+
             }
+            this.chromaColors.pushArray(tmpColors);
         }
-        function isHighSatColorsIn(hueData){
-            for(var i =0; i < this.highSatColors.length; ++i){
-                var hsv = tc(this.highSatColors[i]).toHsv();
-                if(isInHueRange(hsv.h, hueData.rangeL, hueData.rangeR)) return true;   
-            }
-            return false;
+        this.chromaColors.sort(function(f,b){ return b.rate - f.rate; });
+        //print result.
+        console.log(">-------------------------------------");
+        console.log(">--");
+        console.log(">--- Merged achroma Colors");
+        console.log(">--"); 
+        console.log(">-------------------------------------");
+        for(var chromaIdx = 0; chromaIdx < this.chromaColors.length; ++chromaIdx){
+            console.log(JSON.stringify(this.chromaColors[chromaIdx], colorShowFormat, '|     '));
         }
         
-//        console.log(">-");
-//        console.log(">--");
-//        console.log(">--- Achroma Colors");
-//        console.log(">--");
-//        console.log(">-");
-        for(var vIdx = 0; vIdx < pickedTones.length; ++vIdx){
+        function isInColors(hsv, colors){
+            for(var i =0; i < colors.length; ++i){
+                if(hContrastRate(hsv.h, colors[i].h) < 0.2 &&
+                   sContrastRate(hsv.s, colors[i].s) < 0.2 &&
+                   vContrastRate(hsv.v, colors[i].v) < 0.2) return colors[i];
+//                if(isInHueRange(hsv.h, hueData.rangeL, hueData.rangeR)) return true;   
+            }
+            return null;
+        }
+        
+        console.log(">-------------------------------------");
+        console.log(">--");
+        console.log(">--- Achroma Colors");
+        console.log(">--"); 
+        console.log(">-------------------------------------");
+        for(var svIdx = 0; svIdx < pickedTones.length; ++svIdx){
             
-//            console.log("Achroma value " +vIdx+ " : ", pickedTones[vIdx]);
-            var color = tc({
-                h : achromaAvgHsv.h,
-                s : achromaAvgHsv.s,
-                v : (pickedTones[vIdx].x/VALUE_RANGE)
-            }).toRgb();
-            color.rate = (1-chromaRate) * pickedTones[vIdx].rate;
-//            console.log("color", color);
+            console.log("Achroma " +svIdx+ " rate : " +  Math.round(pickedTones[svIdx].rate* 10000)/100 + " %");
+            var color = {
+                'h' : achromaAvgHsv.h,
+                's' : pickedTones[svIdx].x,
+                'v' : pickedTones[svIdx].y,
+                'rate' : (1-chromaRate) * pickedTones[svIdx].rate
+            }
+            console.log(JSON.stringify(color, colorShowFormat, '|     '));
             this.achromaColors[this.achromaColors.length] = 
             this.pickedColors[this.pickedColors.length] = color;
+            for(var achromaIdx = 0; achromaIdx < this.achromaColors.length - 1; ++achromaIdx){
+                if(vContrastRate(this.achromaColors[achromaIdx].v, color.v) < 0.1){
+                    this.achromaColors[achromaIdx].v = (this.achromaColors[achromaIdx].v * this.achromaColors[achromaIdx].rate + color.v * color.rate) / (this.achromaColors[achromaIdx].rate + color.rate);
+                    this.achromaColors.rate += color.rate;
+                    this.achromaColors.pop();
+                    break;
+                }
+            }
         }
-        this.chromaColors.sort(function(f,b){ return b.rate - f.rate; });
         this.achromaColors.sort(function(f,b){ return b.rate - f.rate; });
 
-        if(chromaRate > 0.6){
-            for(var i=0; i< this.chromaColors.length; ++i){
-                this.dominantColors[i] = this.chromaColors[i];   
-            }
-            for(var i=0; i< this.achromaColors.length; ++i){
-                this.dominantColors[this.dominantColors.length+i] = this.achromaColors[i];
-            }
+//        this.dominantColors.pushArray(this.chromaColors);   
+//        this.dominantColors.pushArray(this.achromaColors);
+//        this.dominantColors.sort(function(f,b){ return b.rate - f.rate; });   
+        if(chromaRate > 0.55){
+            this.dominantColors.pushArray(this.chromaColors);   
+            this.dominantColors.pushArray(this.achromaColors);
         }else if( chromaRate < 0.3 ){
-            for(var i=0; i< this.achromaColors.length; ++i){
-                this.dominantColors[i] = this.achromaColors[i];
-            }
-            for(var i=0; i< this.chromaColors.length; ++i){
-                this.dominantColors[this.dominantColors.length+i] = this.chromaColors[i];   
-            }
+            this.dominantColors.pushArray(this.achromaColors);   
+            this.dominantColors.pushArray(this.chromaColors);
 
         }else{
-            for(var i=0; i< this.chromaColors.length; ++i){
-                this.dominantColors[i] = this.chromaColors[i];   
-            }
-            for(var i=0; i< this.achromaColors.length; ++i){
-                this.dominantColors[this.dominantColors.length+i] = this.achromaColors[i];
-            }
-            this.dominantColors.sort(function(f,b){ return b.rate - f.rate; });    
+            this.dominantColors.pushArray(this.chromaColors);   
+            this.dominantColors.pushArray(this.achromaColors);
+            this.dominantColors.sort(function(f,b){ return b.rate - f.rate; });   
         }
-        
-        this.chromaColors.sort(function(f,b){ return b.rate - f.rate; });
-        this.achromaColors.sort(function(f,b){ return b.rate - f.rate; });
     }
-    var DateEnd = new Date();
-    console.log(">> RunTime ms : ", DateEnd - DateStart);
-}
- 
-/* prototype */
-Impressive.prototype = {
-    oldToRgb : function(num){
-        return this.pickedColorsOld;
-    }, 
-    toRgb : function(num){
-        return this.pickedColors;
-    },
-    oldToHexString : function(num){
-        num = typeof num !== "undefined" ? num : 100;
-        var pickedHexString =[];
-        for(var i = 0; i < this.pickedColorsOld.length && i < num; ++i){
-            pickedHexString[i] = tc(this.pickedColorsOld[i]).toHexString();
-        }
-        return pickedHexString;
-    },
-    toHexString : function(num){
-        num = typeof num !== "undefined" ? num : 100;
-        var pickedHexString =[];
-        for(var i = 0; i < this.pickedColors.length && i < num; ++i){
-            pickedHexString[i] = tc(this.pickedColors[i]).toHexString();
-        }
-        return pickedHexString;
-    }
+    var dateEnd = new Date();
+    console.log(">> RunTime ms : ", dateEnd - dateStart);
 }
 
+Impressive.hContrastRate = hContrastRate;
+function hContrastRate(h1, h2){
+    var colorCircle1 = toColorCircle(h1);
+    var colorCircle2 = toColorCircle(h2);
+    var diff = Math.abs(colorCircle1 - colorCircle2);
+    if ( diff > HUE_RANGE/2 ) diff = HUE_RANGE - diff;
+    return diff/(HUE_RANGE/2);
+    
+    function toColorCircle(hue){
+        var colorCircle;
+        if(hue < GREEN_HUE){
+            colorCircle = hue * (3 / 2)   
+        }else{
+            colorCircle = HUE_RANGE/2 + (hue - GREEN_HUE) * 3 / 4;
+        }
+        return colorCircle;
+    }
+}
+Impressive.sContrastRate = sContrastRate;
+function sContrastRate(s1, s2){
+    var diff = Math.abs(s1 - s2);
+    return diff / (SATURATION_RANGE - 1);
+}
+Impressive.vContrastRate = vContrastRate;
+function vContrastRate(v1, v2){
+    var diff = Math.abs(v1 - v2);
+    return diff / (VALUE_RANGE -1);
+}
+
+function colorShowFormat(key, value){
+    var result;
+    switch(key){
+        case 'h' : 
+            result = parseInt(value);
+            break;
+        case 's' :
+        case 'v' :     
+            result = Math.round(value*1000)/1000;
+            break;
+        case 'rate' :
+            result = Math.round(value*10000)/100;
+            break;
+        default :
+            result = value;
+    }
+    return result;
+}
+ 
 /* colors */
-function Colors(){
-    var colorsArr = new Array();
+function Colors(arr){
+    var colorsArr
+    if(arr instanceof Array){
+        colorsArr = new Array(arr.length);
+        for(var i=0; i < arr.length; ++i){
+            colorsArr[i] = arr[i];   
+        }
+    }else{
+        colorsArr = new Array();    
+    }
     colorsArr.toRgb = function(num){
-        return this;
+        num = typeof num !== "undefined" ? num : 100;
+        var pickedRgb =[];
+        for(var i = 0; i < this.length && i < num; ++i){
+            pickedRgb[i] = tc(this[i]).toRgb();
+        }
+        return pickedRgb;
     },
     colorsArr.toHexString = function(num){
         num = typeof num !== "undefined" ? num : 100;
@@ -247,22 +352,23 @@ function Colors(){
         }
         return pickedHexString;
     }
+    colorsArr.pushArray = function(arr){
+        if(arr instanceof Array){
+            for(var i =0; i< arr.length; ++i){
+                this[this.length] = arr[i];   
+            }
+        }
+    }
     return colorsArr;
 }
-//Impressive.create2DHist = create2DHist;
-//Impressive.histCV = histCV;
-//Impressive.smoothing2DHist = smoothing2DHist;
-//Impressive.toBinary2DHist = toBinary2DHist;
-//Impressive.flatten2DHist = flatten2DHist;
-//Impressive.pick2DPeaks = pick2DPeaks;
         
 function isInHueRange(hue, rangeL, rangeR){
     if(rangeL * rangeR > 0 && rangeL <= rangeR){
-        return Math.mod(rangeL, 360) <= hue && 
-            hue <= Math.mod(rangeR, 360);
+        return Math.mod(rangeL, HUE_RANGE) <= hue && 
+            hue <= Math.mod(rangeR, HUE_RANGE);
     }else{
-        return (Math.mod(rangeL, 360) <= hue && hue < 360) ||
-            (0 <= hue && hue <= Math.mod(rangeR, 360));
+        return (Math.mod(rangeL, HUE_RANGE) <= hue && hue < HUE_RANGE) ||
+            (0 <= hue && hue <= Math.mod(rangeR, HUE_RANGE));
     }
 };
 function makeHsvRule(rule){
@@ -288,7 +394,7 @@ var classifyChroma = function(imageCanvas, rule){
     var ctx = imageCanvas.getContext("2d");
     var imageData = ctx.getImageData(0,0,imageCanvas.width, imageCanvas.height);
     var chroma = new circularHistogram1D(HUE_RANGE);    
-    var achroma = new histogram1D(VALUE_RANGE);
+    var achroma = new histogram2D('2d', SATURATION_RANGE,VALUE_RANGE);
     rule = makeHsvRule(rule);
     var allPxl=0;
     var ruledPxl=0;
@@ -322,7 +428,7 @@ var classifyChroma = function(imageCanvas, rule){
                 achromaAvgRgb.r += r;
                 achromaAvgRgb.g += g;
                 achromaAvgRgb.b += b;
-                achroma[vIdx(hsv)]++;   
+                achroma[sIdx(hsv)][vIdx(hsv)]++;   
             }
             allPxl++;
         }
@@ -337,6 +443,7 @@ var classifyChroma = function(imageCanvas, rule){
     return {chroma: chroma, rate: ruledPxl/allPxl, achroma: achroma, avgRgb: avgRgb, achromaAvgRgb: achromaAvgRgb};
    
     function hIdx(hsv){ return parseInt(hsv.h); }
+    function sIdx(hsv){ return Math.round(hsv.s*(SATURATION_RANGE-1)); }
     function vIdx(hsv){ return Math.round(hsv.v*(VALUE_RANGE-1)); }
 }
 var pickHuesWithHighSat = function(imageCanvas){
@@ -347,7 +454,7 @@ var pickHues = function(imageCanvas){
     //hard coding.
     var rawHistResult = hueHistogram(imageCanvas, CHROMA_RULE);
     var rawHist = rawHistResult.hist;
-//    console.log("hue rate : ", rawHistResult.rate);
+    console.log("hue rate : ", rawHistResult.rate);
     var resultHist = rawHist.smoothing(4).flatten(0.01);
     return resultHist.pickPeaks();   
 }
@@ -914,6 +1021,66 @@ histogram2D.prototype.pickPeaks = function(){
         return ul && uu && ur && ll && rr && dl && dd && dr;
     }
 };    
+
+function smoothing(canvas){
+    return cv(canvas, [1,1,1,1,1,
+                       1,1,1,1,1,
+                       1,1,1,1,1,
+                       1,1,1,1,1,
+                       1,1,1,1,1]);
+}
+
+function cv(canvas, mat){
+    var matSize = Math.sqrt(mat.length);
+    var matSum = mat.reduce(function(p, c){ return p+c; });
+    var ctx = canvas.getContext("2d");
+
+    var imageData = ctx.getImageData(0,0,canvas.width, canvas.height);    
+    var rCanvas = new Canvas(canvas.width, canvas.height);
+    var rCtx = rCanvas.getContext("2d");
+    var rImageData = rCtx.createImageData(canvas.width, canvas.height);
+    var rSum;   
+    var gSum;
+    var bSum;
+    var index;
+
+    var cvRange = parseInt(matSize/2);
+    for(var y = 0; y < canvas.height; ++y){
+        for(var x = 0; x< canvas.width; ++x){
+            rSum = 0;
+            gSum = 0;
+            bSum = 0;
+            if( x > cvRange && y > cvRange && x < canvas.width - cvRange && y < canvas.height - cvRange ){
+                index = (y * canvas.width + x) * 4;
+                for(var i = -cvRange; i <= cvRange; ++i ){
+                    for(var j = -cvRange; j<= cvRange; ++j ){
+                        var matIndex = (i+cvRange)*matSize + j + cvRange;
+                        var imgIndex = (j*canvas.width + i) * 4;
+                        rSum += imageData.data[index + imgIndex + 0] * mat[matIndex];
+                        gSum += imageData.data[index + imgIndex + 1] * mat[matIndex];
+                        bSum += imageData.data[index + imgIndex + 2] * mat[matIndex];
+                    }
+                }                   
+            }
+
+            var rResult = parseInt(rSum/matSum);
+            if(rResult < 0 ) rResult = 0;
+            if(rResult > 255) rResult = 255;
+            var gResult = parseInt(gSum/matSum);
+            if(gResult < 0 ) gResult = 0;
+            if(gResult > 255) gResult = 255;
+            var bResult = parseInt(bSum/matSum);
+            if(bResult < 0) bResult = 0;    
+            if(bResult > 255) bResult = 255;
+            rImageData.data[index + 0] = rResult;
+            rImageData.data[index + 1] = gResult;
+            rImageData.data[index + 2] = bResult;
+            rImageData.data[index + 3] = 255;
+        }      
+    }
+    rCtx.putImageData(rImageData, 0, 0);
+    return rCanvas;
+}
 //export node module
 if(isNodeModule){
     module.exports = Impressive;
