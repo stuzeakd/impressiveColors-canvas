@@ -8,8 +8,8 @@ var Canvas;
 var tc;
 var cmCvs;
 
-var console = {};
-console.log = function(){};
+//var console = {};
+//console.log = function(){};
     
 /* Export and Constructor Setting */
 if(isNodeModule){
@@ -124,9 +124,9 @@ var Impressive = function Impressive(imageObj, mode){
         
         var classifyResult = classifyChroma(imageCanvas, CHROMA_RULE);
         
-        var chroma = classifyResult.chroma;
+        var chroma = this.chroma = classifyResult.chroma;
         var chromaRate = classifyResult.rate;
-        var achroma = classifyResult.achroma;
+        var achroma = this.achroma = classifyResult.achroma;
         
         var avgRgb = classifyResult.avgRgb;
         var avgHsv = tc(avgRgb).toHsv();
@@ -136,9 +136,8 @@ var Impressive = function Impressive(imageObj, mode){
         console.log(">  chroma rate : ", Math.round(chromaRate*10000)/100 + " %");
         console.log("> achroma rate : ", Math.round((1-chromaRate)*10000)/100 + " %");
 
-        var pickedHues = chroma.smoothing(4).flatten(0.01).pickPeaks();        
+        var pickedHues = this.pickedHues = chroma.smoothing(4).flatten(0.01).pickPeaks();        
         var pickedTones = achroma.smoothing(4).flatten(0.01).pickPeaks();
-        this.achroma = achroma;
         
         console.log(">-------------------------------------");
         console.log(">--");
