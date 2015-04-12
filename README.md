@@ -8,10 +8,11 @@ I'm preparing demopage.
 ###use node
 
 ```javascript
+var fs = require("fs");
 var Canvas = require("canvas");
 var Image = Canvas.Image;
-var Impressive = require("impression");
-imageData = js.readFileSync("path/to/image");
+var Impression = require("impression");
+imageData = fs.readFileSync("path/to/image");
 var image = new Image();
 image.src = imageData;
 var imp = Impression(image);
