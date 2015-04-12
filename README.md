@@ -12,7 +12,7 @@ var fs = require("fs");
 var Canvas = require("canvas");
 var Image = Canvas.Image;
 var Impression = require("impression");
-imageData = fs.readFileSync("path/to/image");
+var imageData = fs.readFileSync("path/to/image");
 var image = new Image();
 image.src = imageData;
 var imp = Impression(image);
@@ -21,7 +21,6 @@ imp.pickedColors.toHexString();
 imp.highSatColors.toRGB();
 imp.chromaColors.toHexString();
 imp.achromaColors.toRGB();
-imp.dominantColors.toHexString();
 /*get [{r: 255, g: 255, b: 0}, ... ]
   or .toHexString() 
   get ["#FFFF00", ...]*/

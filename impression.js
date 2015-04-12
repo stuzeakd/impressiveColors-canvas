@@ -317,7 +317,24 @@ function vContrastRate(v1, v2){
     var diff = Math.abs(v1 - v2);
     return diff;
 }
-
+function colorShowFormat(key, value){
+    var result;
+    switch(key){
+        case 'h' : 
+            result = parseInt(value);
+            break;
+        case 's' :
+        case 'v' :     
+            result = Math.round(value*1000)/1000;
+            break;
+        case 'rate' :
+            result = Math.round(value*10000)/100;
+            break;
+        default :
+            result = value;
+    }
+    return result;
+}
 /* colors */
 function Colors(arr){
     var colorsArr
