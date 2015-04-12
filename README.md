@@ -1,4 +1,4 @@
-impressive-color-canvas
+impression-canvas
 =========
 
 pick impressive colors from image, canvas for nodejs, browser.
@@ -6,7 +6,7 @@ pick impressive colors from image, canvas for nodejs, browser.
 I'm preparing demopage.
 
 ###use node
-
+you have to install (node-canvas)[https://github.com/Automattic/node-canvas]
 ```javascript
 var fs = require("fs");
 var Canvas = require("canvas");
