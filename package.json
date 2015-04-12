@@ -1,0 +1,36 @@
+{
+  "name": "impression",
+  "version": "1.0.0",
+  "description": "pick impressive colors from image, canvas",
+  "main": "impression.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zeakd/impression-canvas"
+  },
+  "keywords": [
+    "impression",
+    "impressive",
+    "impress",
+    "pick",
+    "extract",
+    "color",
+    "canvas",
+    "image",
+    "node-canvas",
+    "colors"
+  ],
+  "author": "appley",
+  "license": "MIT License",
+  "bugs": {
+    "url": "https://github.com/zeakd/impression-canvas/issues"
+  },
+  "homepage": "https://zeakd.github.com/impression-canvas",
+  "dependencies": {
+    "common-canvas": "^1.0.1",
+    "histogram-analyze": "^1.0.2",
+    "tinycolor2": "^1.1.1"
+  }
+}
