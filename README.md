@@ -5,7 +5,7 @@ pick impressive colors from image, canvas for nodejs, browser.
 
 I'm preparing demopage.
 
-###use node
+### use node
 you have to install (node-canvas)[https://github.com/Automattic/node-canvas]
 ```javascript
 var fs = require("fs");
@@ -26,12 +26,12 @@ imp.achromaColors.toRGB();
   get ["#FFFF00", ...]*/
 ```
 
-###use browser
+### use browser
 
 ```javascript
 
 ```
-###use requirejs
+### use requirejs
 ```javascript
 
 ```
