@@ -1,4 +1,4 @@
-impression-canvas
+DEPRECATED impression-canvas
 =========
 
 pick impressive colors from image, canvas for nodejs, browser.
